@@ -1,0 +1,30 @@
+# depslib dependency file v1.0
+1668450835 source:c:\users\ondra Èech\documents\codeblock\penitentes\main.cpp
+	<iostream>
+	<math.h>
+	<vector>
+	"plycpp.h"
+	<filesystem>
+	<array>
+	<map>
+	<random>
+	<chrono>
+
+1667319522 c:\users\ondra Èech\documents\codeblock\penitentes\plycpp.h
+	<vector>
+	<memory>
+	<string>
+	<cassert>
+	<algorithm>
+	<typeindex>
+
+1667319543 source:c:\users\ondra Èech\documents\codeblock\penitentes\plycpp.cpp
+	"plycpp.h"
+	<fstream>
+	<sstream>
+	<unordered_map>
+	<iostream>
+	<cassert>
+	<algorithm>
+	<typeindex>
+
