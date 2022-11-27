@@ -11,6 +11,7 @@
 #include <filesystem>
 #include <array>
 #include <map>
+#include <algorithm>
 
 #include<random>
 #include<chrono>
@@ -50,6 +51,51 @@ float Dot(Point3f A, Point3f B){
 */
 float length(Point3f vect){
     return sqrt(vect.x*vect.x + vect.y*vect.y + vect.z*vect.z);
+}
+
+/*
+ * @brief   vypocet delta x
+ * @param   src zkoumany bod
+ * @param   vis viditelny bod
+ * @return  vzdalenost bodu na vodorovne plose
+*/
+float distXY(Point3f src, Point3f vis){
+    return sqrt((src.x-vis.x)*(src.x-vis.x)+(src.y-vis.y)*(src.y-vis.y));
+}
+
+/*
+ * @brief   vypocet delta h
+ * @param   src zkoumany bod
+ * @param   vis viditelny bod
+ * @return  rozdil vysky bodu
+*/
+float diffZ(Point3f src, Point3f vis){
+    return src.z-vis.z;
+}
+
+/*
+ * @brief   vypocet h'(x)
+ * @param   ray paprsek
+ * @param   vis viditelny bod
+ * @param   visNorm normala v miste viditelneho bodu
+ * @return  derivace v bode x
+*/
+float derviaceH(Point3f ray, Point3f vis, Point3f visNorm){
+    if(ray.x==0.0 && ray.y==0.0){
+        //nejde urcit rez, ale nemelo by nastat
+        cerr<<"svisly paprsek, nemelo by nastat"<<endl;
+        return -1;
+    }
+    if(visNorm.z==0){
+        //kolmy povrch
+        //TODO
+    }
+    float d=-(visNorm.x*vis.x+visNorm.y*vis.y+visNorm.z*vis.z);
+    float movx=vis.x+ray.x;
+    float movy=vis.y+ray.y;
+
+    float movz=(visNorm.x*movx+visNorm.y*movy+d)/visNorm.z;
+    return (vis.z-movz)/sqrt((movx-vis.x)*(movx-vis.x)+(movy-vis.y)*(movy-vis.y));
 }
 
 /*
@@ -211,23 +257,6 @@ void setNormals(plycpp::PLYData data, int triangle){
 }
 
 
-void simulate(string name){
-    plycpp::PLYData data;
-    plycpp::PLYData data2;
-    plycpp::load(name, data);
-    plycpp::load(name, data2);
-    indexVerts(data);
-    auto vertexElement = data["vertex"];
-    auto vertexIndicesData = data["face"];
-	for(size_t i = 0; i < vertexElement->size(); ++i){
-        //vypocitej vysku v kroku
-        data2["vertex"]->properties["z"]->at<float>(i)=data["vertex"]->properties["z"]->at<float>(i)+0.5;
-	}
-	for(size_t j = 0; j < vertexIndicesData->size()/3; ++j){
-        setNormals(data2, j);
-	}
-	save("box-v2.ply", data2, plycpp::FileFormat::ASCII);
-}
 
 /*
  * @brief   testuje zda se bod nachazi v trojuhelniku
@@ -297,22 +326,16 @@ bool linePlaneIntersection(Point3f* contact, Point3f ray, Point3f rayOrigin, Poi
  * @param   number pocet paprsku z jednoho bodu
  * @param   point souradnice bodu
  * @param   data nactena 3d data
+ * @return  zmena vysky pro bod point
 */
 
-void computeHeight(int number, Point3f point, plycpp::PLYData data){
+float computeDiffHeight(int number, Point3f point, vector<int> indexes, plycpp::PLYData data){
     unsigned seed = chrono::system_clock::now().time_since_epoch().count();
     default_random_engine generator(seed);
     normal_distribution<float> distribution(0.0, 0.34);
     Point3f vec;
 
-    //najit vsechny body se stejnymi souradnicemi
-    string key=to_string(point.x)+to_string(point.y)+to_string(point.z);
-    vector<int> indexes= findSame(mapped, key);
-   // cout<<"indexy: ";
-   // for(int a=0; a<indexes.size(); a++){
-   //     cout<<indexes[a]<<",";
-   // }
-    //cout<<endl;
+    float Iota=0;
 
         for(int i=0; i<number; i++){
                 vec.x=distribution(generator);
@@ -330,7 +353,7 @@ void computeHeight(int number, Point3f point, plycpp::PLYData data){
 
                 const auto& vertexIndicesData = data["face"]->properties["vertex_indices"];
                 //pro kazdy face privraceny alespon k jednomu z bodu vypocitat prunik s rovinnou,
-                for(int j=0; j<indexes.size();j++){
+                for(size_t j=0; j<indexes.size();j++){
                     Point3f point_norm;
                     point_norm.x=data["vertex"]->properties["nx"]->at<float>(indexes[j]);
                     point_norm.y=data["vertex"]->properties["ny"]->at<float>(indexes[j]);
@@ -339,7 +362,7 @@ void computeHeight(int number, Point3f point, plycpp::PLYData data){
                     //pokud lze vyslat
                     if(Dot(point_norm, vec)>0){
                     //pres vsechny faces
-                        for(int k=0; k<vertexIndicesData->size()/3; k++){
+                        for(size_t k=0; k<vertexIndicesData->size()/3; k++){
                             Point3f face_norm;
                             Point3f face_base;
                             Point3f face_base2;
@@ -379,19 +402,62 @@ void computeHeight(int number, Point3f point, plycpp::PLYData data){
                                                 visible=result;
                                                 cout<<result.x<<" "<<result.y<<" "<<result.z<<" "<<face_norm.x<<" "<<face_norm.y<<" "<<face_norm.z<<endl;
                                                 //vypocitat vzorec ablace, sumovat s mezivysledkem
-                                            }
+                                                float deltax=distXY(point,result);
+                                                float deltah=diffZ(point,result);
+                                                float derivh=derviaceH(vec,result, face_norm);
 
+                                                Iota=Iota+((deltah-derivh*deltax)/(deltax*deltax+deltah*deltah));
+                                            }//fi
+                                       }//fi inTriangle
+                                }//fi linePlane
+                            }//fi muze dopadnout
+                        }//for faces
+                    }//fi muze byt vyslan
+                }//for indexes
+                //paprsek co nic nenasel zahodit
+    }//for numbers
+     //vsechny paprsky bud zapocitany do ioty nebo zahozeny v prubehu
+     return -0.5e6/7e9*Iota;
+}
 
-                                       }
-                                }
-                            }
-                        }
-                    }
-                    //kdyz nenajde nic zahodit paprsek
-                }
-
-                //ulozit indexy bodu do vektoru
-    }
+/*
+ * @brief   krok simulace
+ * @param   name jmeno souboru typu ply
+*/
+void simulate(string name){
+    plycpp::PLYData data;
+    plycpp::PLYData data2;
+    plycpp::load(name, data);
+    plycpp::load(name, data2);
+    indexVerts(data);
+    vector<int> checkedIndexes;
+    auto vertexElement = data["vertex"];
+    auto vertexIndicesData = data["face"];
+	for(size_t i = 0; i < vertexElement->size(); ++i){
+        //vypocitej vysku v kroku
+        Point3f pnt={data2["vertex"]->properties["x"]->at<float>(i),data2["vertex"]->properties["y"]->at<float>(i),data2["vertex"]->properties["z"]->at<float>(i)};
+        //najit vsechny body se stejnymi souradnicemi
+        string key=to_string(pnt.x)+to_string(pnt.y)+to_string(pnt.z);
+        vector<int> indexes= findSame(mapped, key);
+        //pokud uz byl vertex pocitan s jinym, preskocit
+        if(any_of(checkedIndexes.begin(), checkedIndexes.end(), [&](const int& elem) { return elem == i; })){
+            continue;
+        }
+        // cout<<"indexy: ";
+        //zapsat vsechny prepocitane indexy
+       for(long long unsigned int a=0; a<indexes.size(); a++){
+       //     cout<<indexes[a]<<",";
+            data2["vertex"]->properties["z"]->at<float>(a)=data["vertex"]->properties["z"]->at<float>(a)+computeDiffHeight(1000,pnt, indexes, data);
+            checkedIndexes.push_back(indexes[a]);
+            //TODO
+            //taky je musí zmìnit v hash tabulce, nebo delat novou kazdy krok?
+        }
+        //cout<<endl;
+	}
+	for(size_t j = 0; j < vertexIndicesData->size()/3; ++j){
+        setNormals(data2, j);
+	}
+	save("box-v2.ply", data2, plycpp::FileFormat::ASCII);
 }
 
 
@@ -408,8 +474,7 @@ int main()
 
 		plycpp::load("box2.ply", data);
 		indexVerts(data);
-		Point3f a={1.0,1.0,1.0};
-		computeHeight(1000, a, data );
+
 
 
     return 0;
