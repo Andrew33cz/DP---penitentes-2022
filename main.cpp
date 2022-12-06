@@ -16,6 +16,8 @@
 #include<random>
 #include<chrono>
 
+#include <omp.h>
+
 using namespace std;
 
 
@@ -32,7 +34,6 @@ struct Point3f {
  * @brief   hash tabulka, uklada body se stejnymi souradnicemi
 */
 multimap<std::string, int> mapped={};
-
 
 /*
  * @brief   skalarni soucin
@@ -89,6 +90,7 @@ float derviaceH(Point3f ray, Point3f vis, Point3f visNorm){
     if(visNorm.z==0){
         //kolmy povrch
         //TODO
+        return 65535.0;
     }
     float d=-(visNorm.x*vis.x+visNorm.y*vis.y+visNorm.z*vis.z);
     float movx=vis.x+ray.x;
@@ -157,10 +159,14 @@ void indexVerts(plycpp::PLYData data){
     const float* ptX = vertexElement->properties["x"]->ptr<float>();
 	const float* ptY = vertexElement->properties["y"]->ptr<float>();
     const float* ptZ = vertexElement->properties["z"]->ptr<float>();
+    #pragma omp parallel for
     for (size_t i = 0; i < vertexElement->size(); ++i)
 			{
 			    string _hash=to_string(ptX[i])+to_string(ptY[i])+to_string(ptZ[i]);
+			    #pragma omp critical
+			    {
 				mapped.insert({_hash,i});
+			    }
 			}
 }
 
@@ -333,17 +339,20 @@ float computeDiffHeight(int number, Point3f point, vector<int> indexes, plycpp::
     unsigned seed = chrono::system_clock::now().time_since_epoch().count();
     default_random_engine generator(seed);
     normal_distribution<float> distribution(0.0, 0.34);
-    Point3f vec;
+
 
     float Iota=0;
-
+        #pragma omp parallel for
         for(int i=0; i<number; i++){
+                Point3f vec;
                 vec.x=distribution(generator);
                 vec.y=distribution(generator);
                 vec.z=distribution(generator);
 
                 float param_m=10000.0;
                 Point3f visible;
+                Point3f visnorm;
+                bool found=false;
                     //pokud neni v poloprostoru normaly
                     //if(vec.z<=(normal.x*vec.x+normal.y*vec.y)/normal.z){}
                 //ted mam vektor delky 1 do libovolneho smeru polokoule
@@ -362,6 +371,7 @@ float computeDiffHeight(int number, Point3f point, vector<int> indexes, plycpp::
                     //pokud lze vyslat
                     if(Dot(point_norm, vec)>0){
                     //pres vsechny faces
+                        //#pragma omp parallel for
                         for(size_t k=0; k<vertexIndicesData->size()/3; k++){
                             Point3f face_norm;
                             Point3f face_base;
@@ -384,80 +394,106 @@ float computeDiffHeight(int number, Point3f point, vector<int> indexes, plycpp::
                             face_base3.y=data["vertex"]->properties["y"]->at<float>(data["face"]->properties["vertex_indices"]->at<unsigned int>(k*3+2));
                             face_base3.z=data["vertex"]->properties["z"]->at<float>(data["face"]->properties["vertex_indices"]->at<unsigned int>(k*3+2));
                             //cout<<"face norm: "<<face_norm.x<<" "<<face_norm.y<<" "<<face_norm.z<<endl;
-                            if(Dot(vec,face_norm)<0){
-                                Point3f result;
-                                float p;
-                                //contact, ray, rayorigin, normal coord param
-                                if(linePlaneIntersection(&result, vec, point, face_norm, face_base, &p)){
-                                        //kdyz bude param <0, zahodit (paprsek sel dozadu a narazil na odvracenou stranu)
-                                        //
-                                       // if(p>0)cout<<result.x<<" "<<result.y<<" "<<result.z<<endl;
-
-                                        if(inTriangle(result, face_base, face_base2, face_base3)){
-                                            //v rovine vypocitat jestli se nachazi v trojuhelniku,
-                                            //kdyz ne continue;
-                                            //kdyz ano vybrat nejblizsi, ostatni zakryva
-                                            if((p<param_m)&&(p>0)){
-                                                param_m=p;
-                                                visible=result;
-                                                cout<<result.x<<" "<<result.y<<" "<<result.z<<" "<<face_norm.x<<" "<<face_norm.y<<" "<<face_norm.z<<endl;
-                                                //vypocitat vzorec ablace, sumovat s mezivysledkem
-                                                float deltax=distXY(point,result);
-                                                float deltah=diffZ(point,result);
-                                                float derivh=derviaceH(vec,result, face_norm);
-
-                                                Iota=Iota+((deltah-derivh*deltax)/(deltax*deltax+deltah*deltah));
-                                            }//fi
-                                       }//fi inTriangle
-                                }//fi linePlane
-                            }//fi muze dopadnout
+                            Point3f result;
+                            float p;
+                            //contact, ray, rayorigin, normal coord param
+                            if(linePlaneIntersection(&result, vec, point, face_norm, face_base, &p)){
+                                    //kdyz bude param <0, zahodit (paprsek sel dozadu a narazil na odvracenou stranu)
+                                    // if(p>0)cout<<result.x<<" "<<result.y<<" "<<result.z<<endl;
+                                    if((inTriangle(result, face_base, face_base2, face_base3))&&(p>0)){
+                                        //v rovine vypocitat jestli se nachazi v trojuhelniku,
+                                        //kdyz ne continue;
+                                        //kdyz ano vybrat nejblizsi, ostatni zakryva
+                                        if(p<param_m){
+                                            param_m=p;
+                                            visible=result;
+                                            visnorm=face_norm;
+                                            found=true;
+                                            //cout<<result.x<<" "<<result.y<<" "<<result.z<<" "<<face_norm.x<<" "<<face_norm.y<<" "<<face_norm.z<<endl;
+                                        }//fi
+                                    }//fi inTriangle
+                            }//fi linePlanet
                         }//for faces
+                    //muze byt vyslan jen jednou
+                    break;
                     }//fi muze byt vyslan
                 }//for indexes
+                //ve visible bude proste nejblizsi bod. ten bude bud privraceny=viditelny, nebo odvraceny=sli jsme skrz objekt, chyba
+                if((Dot(vec,visnorm)<0)&&(found==true)&&(param_m>0.1)){
+                    //vypocitat vzorec ablace, sumovat s mezivysledkem
+                    float deltax=distXY(point,visible);
+                    float deltah=diffZ(point,visible);
+                    float derivh=derviaceH(vec,visible, visnorm);
+                    #pragma omp critical
+                    {
+                    Iota=Iota+((deltah-derivh*deltax)/(deltax*deltax+deltah*deltah));
+                    }
+  //                  if(Iota>50000.0){
+  //                      cout<<"Iota "<<Iota<<" derivh "<<derivh<<" deltax "<<deltax<<" "<<deltah<<endl;
+  //                      char p;
+  //                      cin>>p;
+  //                  }
+
+                }//fi muze dopadnout
                 //paprsek co nic nenasel zahodit
     }//for numbers
      //vsechny paprsky bud zapocitany do ioty nebo zahozeny v prubehu
-     return -0.5e6/7e9*Iota;
+     float I= -0.5e6/7e9*Iota;
+     return I;
 }
 
 /*
  * @brief   krok simulace
  * @param   name jmeno souboru typu ply
 */
-void simulate(string name){
+void simulate(string name, float stepLength, size_t steps){
     plycpp::PLYData data;
     plycpp::PLYData data2;
     plycpp::load(name, data);
     plycpp::load(name, data2);
-    indexVerts(data);
-    vector<int> checkedIndexes;
-    auto vertexElement = data["vertex"];
-    auto vertexIndicesData = data["face"];
-	for(size_t i = 0; i < vertexElement->size(); ++i){
-        //vypocitej vysku v kroku
-        Point3f pnt={data2["vertex"]->properties["x"]->at<float>(i),data2["vertex"]->properties["y"]->at<float>(i),data2["vertex"]->properties["z"]->at<float>(i)};
-        //najit vsechny body se stejnymi souradnicemi
-        string key=to_string(pnt.x)+to_string(pnt.y)+to_string(pnt.z);
-        vector<int> indexes= findSame(mapped, key);
-        //pokud uz byl vertex pocitan s jinym, preskocit
-        if(any_of(checkedIndexes.begin(), checkedIndexes.end(), [&](const int& elem) { return elem == i; })){
-            continue;
+    for(size_t s=0; s<steps; s++){
+        indexVerts(data);
+        cout<<"vertices indexed"<<endl;
+
+        auto vertexElement = data["vertex"];
+        auto vertexIndicesData = data["face"];
+        vector<int> checkedIndexes;
+        for(size_t i = 0; i < vertexElement->size(); ++i){
+            //vypocitej vysku v kroku
+            Point3f pnt={data["vertex"]->properties["x"]->at<float>(i),data["vertex"]->properties["y"]->at<float>(i),data["vertex"]->properties["z"]->at<float>(i)};
+            //najit vsechny body se stejnymi souradnicemi
+            string key=to_string(pnt.x)+to_string(pnt.y)+to_string(pnt.z);
+            vector<int> indexes= findSame(mapped, key);
+            //pokud uz byl vertex pocitan s jinym, preskocit
+            cout<<"checked: "<<checkedIndexes.size()<<" now:"<<indexes.size()<<endl;
+            if(!(any_of(checkedIndexes.begin(), checkedIndexes.end(), [&](const int& elem) { return elem == i; }))){
+                // cout<<"indexy: ";
+                //vypocitam zmenu vysky v bode
+               float differ=computeDiffHeight(1000,pnt, indexes, data);
+               //a smazat stary
+                mapped.erase(key);
+                //zapsat vsechny prepocitane indexy
+               for(long long unsigned int a=0; a<indexes.size(); a++){
+                    //cout<<"index "<<indexes[a]<<","<<endl;
+                    data2["vertex"]->properties["z"]->at<float>(indexes[a])=data["vertex"]->properties["z"]->at<float>(indexes[a])-differ*stepLength;
+                    //taky je musí zmìnit v hash tabulce, ulozit novy hash
+                }
+                //cout<<endl;
+                checkedIndexes.insert(checkedIndexes.end(), indexes.begin(), indexes.end());
+                cout<<"vertice "<<i<<" out of "<<vertexElement->size()<<" changed by "<<-differ*stepLength<<endl;
+            }
+            cout<<"hash tabulka: "<<mapped.size()<<endl;
         }
-        // cout<<"indexy: ";
-        //zapsat vsechny prepocitane indexy
-       for(long long unsigned int a=0; a<indexes.size(); a++){
-       //     cout<<indexes[a]<<",";
-            data2["vertex"]->properties["z"]->at<float>(a)=data["vertex"]->properties["z"]->at<float>(a)+computeDiffHeight(1000,pnt, indexes, data);
-            checkedIndexes.push_back(indexes[a]);
-            //TODO
-            //taky je musí zmìnit v hash tabulce, nebo delat novou kazdy krok?
+        cout<<"fixing normals"<<endl;
+        #pragma omp parallel for
+        for(size_t j = 0; j < vertexIndicesData->size()/3; ++j){
+            setNormals(data2, j);
         }
-        //cout<<endl;
+        string newname= name.substr(0, name.size()-4);
+        newname=newname+"-"+to_string(s)+".ply";
+        save(newname, data2, plycpp::FileFormat::ASCII);
+        plycpp::load(newname, data);
 	}
-	for(size_t j = 0; j < vertexIndicesData->size()/3; ++j){
-        setNormals(data2, j);
-	}
-	save("box-v2.ply", data2, plycpp::FileFormat::ASCII);
 }
 
 
@@ -468,14 +504,6 @@ void simulate(string name){
 
 int main()
 {
-   		std::cout << "Loading PLY data..." << std::endl;
-		plycpp::PLYData data;
-
-
-		plycpp::load("box2.ply", data);
-		indexVerts(data);
-
-
-
+    simulate("b1.ply",1.0,5);
     return 0;
 }
