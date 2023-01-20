@@ -29,6 +29,7 @@ int main(int argc, char *argv[])
     }
     string name(argv[1]);
     cout<<name<<" "<<atoi(argv[2])<<" "<<atoi(argv[3])<<" "<<atoi(argv[4])<<" "<<endl;
-    simulate(name,atoi(argv[2]),atoi(argv[3]),atoi(argv[4]));
+    //simulate(name,atoi(argv[2]),atoi(argv[3]),atoi(argv[4]));
+    points(name,atoi(argv[4]));
     return 0;
 }

@@ -217,57 +217,44 @@ void setNormals(plycpp::PLYData data, int triangle){
 			if (vertexIndicesData && vertexIndicesData->isList)
 			{
                 //indexy bodu v trojuhelniku
-				int pt1=vertexIndicesData->at<unsigned int>(3*triangle);
-				int pt2=vertexIndicesData->at<unsigned int>(3*triangle+1);
-				int pt3=vertexIndicesData->at<unsigned int>(3*triangle+2);
+				int i1=vertexIndicesData->at<unsigned int>(3*triangle);
+				int i2=vertexIndicesData->at<unsigned int>(3*triangle+1);
+				int i3=vertexIndicesData->at<unsigned int>(3*triangle+2);
 
-                auto vertexElement = data["vertex"];
-                const float* ptX = vertexElement->properties["x"]->ptr<float>();
-                const float* ptY = vertexElement->properties["y"]->ptr<float>();
-                const float* ptZ = vertexElement->properties["z"]->ptr<float>();
-                //vektory
-                float a_x= ptX[pt2]-ptX[pt1];
-                float a_y= ptY[pt2]-ptY[pt1];
-                float a_z= ptZ[pt2]-ptZ[pt1];
-
-                float b_x= ptX[pt2]-ptX[pt3];
-                float b_y= ptY[pt2]-ptY[pt3];
-                float b_z= ptZ[pt2]-ptZ[pt3];
-                //vektorovy soucin=vektor kolmy na trojuhelnik
-                float v_x=a_y*b_z-a_z*b_y;
-                float v_y=a_z*b_x-a_x*b_z;
-                float v_z=a_x*b_y-a_y*b_x;
+				Point3f pt1={data["vertex"]->properties["x"]->at<float>(i1), data["vertex"]->properties["y"]->at<float>(i1), data["vertex"]->properties["z"]->at<float>(i1)};
+                Point3f pt2={data["vertex"]->properties["x"]->at<float>(i2), data["vertex"]->properties["y"]->at<float>(i2), data["vertex"]->properties["z"]->at<float>(i2)};
+                Point3f pt3={data["vertex"]->properties["x"]->at<float>(i3), data["vertex"]->properties["y"]->at<float>(i3), data["vertex"]->properties["z"]->at<float>(i3)};
+                //vektorovy soucin
+                Point3f vc=normalize(cross(pt1, pt2, pt3));
                 //skalarni soucin s puvodni normalou? jestli maji podobny smer
-                const float* pnX = vertexElement->properties["nx"]->ptr<float>();
-                const float* pnY = vertexElement->properties["ny"]->ptr<float>();
-                const float* pnZ = vertexElement->properties["nz"]->ptr<float>();
-                float dot=v_x*pnX[pt1]+v_y*pnY[pt1]+v_z*pnZ[pt1];
+                Point3f vc_orig={data["vertex"]->properties["nx"]->at<float>(i1), data["vertex"]->properties["ny"]->at<float>(i1), data["vertex"]->properties["nz"]->at<float>(i1)};
+                float dot=Dot(vc, vc_orig);
                 if(dot>0.0){
                     //zapsat do vsech tri bodu trojuhelniku
-                    data["vertex"]->properties["nx"]->at<float>(pt1)=v_x;
-                    data["vertex"]->properties["nx"]->at<float>(pt2)=v_x;
-                    data["vertex"]->properties["nx"]->at<float>(pt3)=v_x;
+                    data["vertex"]->properties["nx"]->at<float>(i1)=vc.x;
+                    data["vertex"]->properties["nx"]->at<float>(i2)=vc.x;
+                    data["vertex"]->properties["nx"]->at<float>(i3)=vc.x;
 
-                    data["vertex"]->properties["ny"]->at<float>(pt1)=v_y;
-                    data["vertex"]->properties["ny"]->at<float>(pt2)=v_y;
-                    data["vertex"]->properties["ny"]->at<float>(pt3)=v_y;
+                    data["vertex"]->properties["ny"]->at<float>(i1)=vc.y;
+                    data["vertex"]->properties["ny"]->at<float>(i2)=vc.y;
+                    data["vertex"]->properties["ny"]->at<float>(i3)=vc.y;
 
-                    data["vertex"]->properties["nz"]->at<float>(pt1)=v_z;
-                    data["vertex"]->properties["nz"]->at<float>(pt2)=v_z;
-                    data["vertex"]->properties["nz"]->at<float>(pt3)=v_z;
+                    data["vertex"]->properties["nz"]->at<float>(i1)=vc.z;
+                    data["vertex"]->properties["nz"]->at<float>(i2)=vc.z;
+                    data["vertex"]->properties["nz"]->at<float>(i3)=vc.z;
                 }else{
                     //zapsat do vsech tri bodu trojuhelniku
-                    data["vertex"]->properties["nx"]->at<float>(pt1)=-v_x;
-                    data["vertex"]->properties["nx"]->at<float>(pt2)=-v_x;
-                    data["vertex"]->properties["nx"]->at<float>(pt3)=-v_x;
+                    data["vertex"]->properties["nx"]->at<float>(i1)=-vc.x;
+                    data["vertex"]->properties["nx"]->at<float>(i2)=-vc.x;
+                    data["vertex"]->properties["nx"]->at<float>(i3)=-vc.x;
 
-                    data["vertex"]->properties["ny"]->at<float>(pt1)=-v_y;
-                    data["vertex"]->properties["ny"]->at<float>(pt2)=-v_y;
-                    data["vertex"]->properties["ny"]->at<float>(pt3)=-v_y;
+                    data["vertex"]->properties["ny"]->at<float>(i1)=-vc.y;
+                    data["vertex"]->properties["ny"]->at<float>(i2)=-vc.y;
+                    data["vertex"]->properties["ny"]->at<float>(i3)=-vc.y;
 
-                    data["vertex"]->properties["nz"]->at<float>(pt1)=-v_z;
-                    data["vertex"]->properties["nz"]->at<float>(pt2)=-v_z;
-                    data["vertex"]->properties["nz"]->at<float>(pt3)=-v_z;
+                    data["vertex"]->properties["nz"]->at<float>(i1)=-vc.z;
+                    data["vertex"]->properties["nz"]->at<float>(i2)=-vc.z;
+                    data["vertex"]->properties["nz"]->at<float>(i3)=-vc.z;
                 }
 
 			}
@@ -292,15 +279,15 @@ bool inTriangle(Point3f tested, Point3f tri1, Point3f tri2, Point3f tri3){
     Point3f ax=normalize(cross(tri1, tested, tri3));
     //pokud ax vyslo [0,0,0] lezi na zkoumane hrane a tedy patri do trojuhelniku
     //pokud maji stejnou normalu, lezi na stejne strane hrany jako 3. bod
-    if((diff(tri,ax)<0.001)||(ax.x==0.0 && ax.y==0.0 && ax.z==0.0)){
+    if((abs(diff(tri,ax))<0.001)||(ax.x==0.0 && ax.y==0.0 && ax.z==0.0)){
         //zkoumame dalsi hranu obdobne
         ax=normalize(cross(tri1, tri2, tested));
-        if((diff(tri,ax)<0.001)||(ax.x==0.0 && ax.y==0.0 && ax.z==0.0)){
+        if((abs(diff(tri,ax))<0.001)||(ax.x==0.0 && ax.y==0.0 && ax.z==0.0)){
             ax=normalize(cross(tri2, tri3, tested));
             tri=normalize(cross(tri2, tri3, tri1));
             //cout<<"res: "<<ax.x<<", "<<ax.y<<", "<<ax.z<<endl;
            // cout<<diff(tri,ax)<<endl;
-            if((diff(tri,ax)<0.001)||(ax.x==0.0 && ax.y==0.0 && ax.z==0.0)){
+            if((abs(diff(tri,ax))<0.001)||(ax.x==0.0 && ax.y==0.0 && ax.z==0.0)){
                 return true;
             }else{
                 return false;
@@ -360,6 +347,7 @@ float computeDiffHeight(int number, Point3f point, vector<int> indexes, plycpp::
     default_random_engine generator(seed);
     normal_distribution<float> distribution(0.0, 0.34);
     float Iota=0;
+    int vsblpnt=0;
         #pragma omp parallel for
         for(int i=0; i<number; i++){
                 Point3f result;
@@ -399,6 +387,7 @@ float computeDiffHeight(int number, Point3f point, vector<int> indexes, plycpp::
                 }//for indexes
                 //pres vsechny faces
                 for(size_t k=0; k<vertexIndicesData->size()/3; k++){
+                    //cout<<k*3<<endl;
                     Point3f face_norm;
                     Point3f face_base;
                     Point3f face_base2;
@@ -445,6 +434,8 @@ float computeDiffHeight(int number, Point3f point, vector<int> indexes, plycpp::
                     float deltax=distXY(point,visible);
                     float deltah=diffZ(point,visible);
                     float derivh=derviaceH(vec,visible, visnorm);
+
+                    vsblpnt++;
                     #pragma omp critical
                     {
                     Iota=Iota+((deltah-derivh*deltax)/(deltax*deltax+deltah*deltah));
@@ -453,6 +444,7 @@ float computeDiffHeight(int number, Point3f point, vector<int> indexes, plycpp::
                 //paprsek co nic nenasel zahodit
     }//for numbers
     float I= -0.5e6/7e9*Iota;
+    cout<<"visible points: "<<vsblpnt<<endl;
      return I;
 }
 
@@ -489,7 +481,7 @@ void simulate(string name, float stepLength, size_t steps, size_t rays){
             string key=to_string(pnt.x)+to_string(pnt.y)+to_string(pnt.z);
             vector<int> indexes= findSame(mapped, key);
             //pokud uz byl vertex pocitan s jinym, preskocit
-            cout<<"checked: "<<checkedIndexes.size()<<" now:"<<indexes.size()<<endl;
+            cout<<"checked: "<<checkedIndexes.size()<<" of "<<vertexElement->size()<<" now:"<<indexes.size()<<endl;
             if(!(any_of(checkedIndexes.begin(), checkedIndexes.end(), [&](const int& elem) { return elem == i; }))){
                 // cout<<"indexy: ";
                 //vypocitam zmenu vysky v bode
@@ -501,16 +493,16 @@ void simulate(string name, float stepLength, size_t steps, size_t rays){
                     //cout<<"index "<<indexes[a]<<","<<endl;
                     data2["vertex"]->properties["z"]->at<float>(indexes[a])=data["vertex"]->properties["z"]->at<float>(indexes[a])-differ*stepLength;
                     //taky je musí zmìnit v hash tabulce, ulozit novy hash
+                    cout<<indexes[a]<<", ";
                 }
                 //cout<<endl;
                 checkedIndexes.insert(checkedIndexes.end(), indexes.begin(), indexes.end());
-                cout<<"vertice "<<i<<" out of "<<vertexElement->size()<<" changed by "<<-differ*stepLength<<endl;
+                cout<<" changed by "<<-differ*stepLength<<endl;
             }
-            cout<<"hash tabulka: "<<mapped.size()<<endl;
         }
         cout<<"fixing normals"<<endl;
         #pragma omp parallel for
-        for(size_t j = 0; j < vertexIndicesData->size()/3; ++j){
+        for(size_t j = 0; j <vertexIndicesData->size(); j++){
             setNormals(data2, j);
         }
         string newname= name.substr(0, name.size()-4);
@@ -587,16 +579,17 @@ void showVisiblePoints(int number, Point3f point, vector<int> indexes, plycpp::P
                     face_base3.x=data["vertex"]->properties["x"]->at<float>(data["face"]->properties["vertex_indices"]->at<unsigned int>(k*3+2));
                     face_base3.y=data["vertex"]->properties["y"]->at<float>(data["face"]->properties["vertex_indices"]->at<unsigned int>(k*3+2));
                     face_base3.z=data["vertex"]->properties["z"]->at<float>(data["face"]->properties["vertex_indices"]->at<unsigned int>(k*3+2));
-                    //cout<<"face norm: "<<face_norm.x<<" "<<face_norm.y<<" "<<face_norm.z<<endl;
+                    //cout<<"face: "<<data["face"]->properties["vertex_indices"]->at<unsigned int>(k*3)<<endl;
                     float p;
                         //contact, ray, rayorigin, normal coord param
                     if(linePlaneIntersection(&result, vec, point, face_norm, face_base, &p)){
                             //kdyz bude param <0, zahodit (paprsek sel dozadu a narazil na odvracenou stranu)
-                        if((inTriangle(result, face_base, face_base2, face_base3))){
+                        if(inTriangle(result, face_base, face_base2, face_base3)){
                         //v rovine vypocitat jestli se nachazi v trojuhelniku,
                             //kdyz ne continue;
                         //kdyz ano vybrat nejblizsi, ostatni zakryva
                                 //cout<<p<<endl;
+                               // if(p!=0)cout<<result.x<<" "<<result.y<<" "<<result.z<<endl;
                                 if((p<param_m)&&(p>0)){
                                     param_m=p;
                                     visible=result;
@@ -606,11 +599,39 @@ void showVisiblePoints(int number, Point3f point, vector<int> indexes, plycpp::P
                             }//fi inTriangle
                         }//fi linePlanet
                 }//for faces
-
                 //ve visible bude proste nejblizsi bod. ten bude bud privraceny=viditelny, nebo odvraceny=sli jsme skrz objekt, chyba
                 if((Dot(vec,visnorm)<0)&&(found==true)){
-                    cout<<visible.x<<" "<<visible.y<<" "<<visible.z<<endl;
+                   cout<<visible.x<<" "<<visible.y<<" "<<visible.z<<endl;
                 }//fi muze dopadnout
                 //paprsek co nic nenasel zahodit
     }//for numbers
+}
+
+void getNorms(plycpp::PLYData data){
+    for(int x=0; x<data["vertex"]->size(); x++){
+      cout<<data["vertex"]->properties["x"]->at<float>(x)+data["vertex"]->properties["nx"]->at<float>(x)*0.1<<" "
+      <<data["vertex"]->properties["y"]->at<float>(x)+data["vertex"]->properties["ny"]->at<float>(x)*0.1<<" "
+      <<data["vertex"]->properties["z"]->at<float>(x)+data["vertex"]->properties["nz"]->at<float>(x)*0.1<<endl;
+    }
+}
+
+/*
+ * @brief   testovaci funkce
+ * @param   name jmeno souboru typu ply
+ * @param   rays pocet vyslanych paprsku na jeden bod
+*/
+void points(string name, size_t rays){
+    //index bodu
+    int i=20;
+    plycpp::PLYData data;
+    plycpp::load(name, data);
+    indexVerts(data);
+    auto vertexElement = data["vertex"];
+    auto vertexIndicesData = data["face"];
+    vector<int> checkedIndexes;
+    Point3f pnt={data["vertex"]->properties["x"]->at<float>(i),data["vertex"]->properties["y"]->at<float>(i),data["vertex"]->properties["z"]->at<float>(i)};
+    string key=to_string(pnt.x)+to_string(pnt.y)+to_string(pnt.z);
+    vector<int> indexes= findSame(mapped, key);
+    getNorms(data);
+    //showVisiblePoints(rays, pnt, indexes, data);
 }
