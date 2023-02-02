@@ -111,7 +111,7 @@ float derviaceH(Point3f ray, Point3f vis, Point3f visNorm){
  * @return  rozdil A a B
 */
 float diff(Point3f a, Point3f b){
-    return abs(a.x-b.x+a.y-b.y+a.z-b.z);
+    return abs(a.x-b.x)+abs(a.y-b.y)+abs(a.z-b.z);
 }
 
 /*
@@ -277,16 +277,23 @@ void setNormals(plycpp::PLYData data, int triangle){
 bool inTriangle(Point3f tested, Point3f tri1, Point3f tri2, Point3f tri3){
     Point3f tri=normalize(cross(tri1, tri2, tri3));
     Point3f ax=normalize(cross(tri1, tested, tri3));
+//    cout<<"tri "<<tri.x<<" "<<tri.y<<" "<<tri.z<<endl;
+//    cout<<"ax "<<ax.x<<" "<<ax.y<<" "<<ax.z<<endl;
+//    cout<<"dif "<<diff(tri,ax)<<endl;
     //pokud ax vyslo [0,0,0] lezi na zkoumane hrane a tedy patri do trojuhelniku
     //pokud maji stejnou normalu, lezi na stejne strane hrany jako 3. bod
     if((abs(diff(tri,ax))<0.001)||(ax.x==0.0 && ax.y==0.0 && ax.z==0.0)){
         //zkoumame dalsi hranu obdobne
         ax=normalize(cross(tri1, tri2, tested));
+//        cout<<"tri "<<tri.x<<" "<<tri.y<<" "<<tri.z<<endl;
+//        cout<<"ax "<<ax.x<<" "<<ax.y<<" "<<ax.z<<endl;
+//        cout<<"dif "<<diff(tri,ax)<<endl;
         if((abs(diff(tri,ax))<0.001)||(ax.x==0.0 && ax.y==0.0 && ax.z==0.0)){
             ax=normalize(cross(tri2, tri3, tested));
             tri=normalize(cross(tri2, tri3, tri1));
-            //cout<<"res: "<<ax.x<<", "<<ax.y<<", "<<ax.z<<endl;
-           // cout<<diff(tri,ax)<<endl;
+//            cout<<"tri "<<tri.x<<" "<<tri.y<<" "<<tri.z<<endl;
+//            cout<<"ax "<<ax.x<<" "<<ax.y<<" "<<ax.z<<endl;
+//            cout<<"dif "<<diff(tri,ax)<<endl;
             if((abs(diff(tri,ax))<0.001)||(ax.x==0.0 && ax.y==0.0 && ax.z==0.0)){
                 return true;
             }else{
@@ -383,51 +390,51 @@ float computeDiffHeight(int number, Point3f point, vector<int> indexes, plycpp::
                         break;
                     }//fi muze byt vyslan
                     //pokud ho nejde vyslat z zadneho vrcholu, zahodit
-                    if(check==false) continue;
                 }//for indexes
-                //pres vsechny faces
-                for(size_t k=0; k<vertexIndicesData->size()/3; k++){
-                    //cout<<k*3<<endl;
-                    Point3f face_norm;
-                    Point3f face_base;
-                    Point3f face_base2;
-                    Point3f face_base3;
-                        //cout<<"normala facu "<<j<<": ";
-                    face_norm.x=data["vertex"]->properties["nx"]->at<float>(data["face"]->properties["vertex_indices"]->at<unsigned int>(k*3));
-                    face_norm.y=data["vertex"]->properties["ny"]->at<float>(data["face"]->properties["vertex_indices"]->at<unsigned int>(k*3));
-                    face_norm.z=data["vertex"]->properties["nz"]->at<float>(data["face"]->properties["vertex_indices"]->at<unsigned int>(k*3));
+                if(check==true){
+                    //pres vsechny faces
+                    for(size_t k=0; k<vertexIndicesData->size()/3; k++){
+                        //cout<<k*3<<endl;
+                        Point3f face_norm;
+                        Point3f face_base;
+                        Point3f face_base2;
+                        Point3f face_base3;
+                            //cout<<"normala facu "<<j<<": ";
+                        face_norm.x=data["vertex"]->properties["nx"]->at<float>(data["face"]->properties["vertex_indices"]->at<unsigned int>(k*3));
+                        face_norm.y=data["vertex"]->properties["ny"]->at<float>(data["face"]->properties["vertex_indices"]->at<unsigned int>(k*3));
+                        face_norm.z=data["vertex"]->properties["nz"]->at<float>(data["face"]->properties["vertex_indices"]->at<unsigned int>(k*3));
 
-                    face_base.x=data["vertex"]->properties["x"]->at<float>(data["face"]->properties["vertex_indices"]->at<unsigned int>(k*3));
-                    face_base.y=data["vertex"]->properties["y"]->at<float>(data["face"]->properties["vertex_indices"]->at<unsigned int>(k*3));
-                    face_base.z=data["vertex"]->properties["z"]->at<float>(data["face"]->properties["vertex_indices"]->at<unsigned int>(k*3));
+                        face_base.x=data["vertex"]->properties["x"]->at<float>(data["face"]->properties["vertex_indices"]->at<unsigned int>(k*3));
+                        face_base.y=data["vertex"]->properties["y"]->at<float>(data["face"]->properties["vertex_indices"]->at<unsigned int>(k*3));
+                        face_base.z=data["vertex"]->properties["z"]->at<float>(data["face"]->properties["vertex_indices"]->at<unsigned int>(k*3));
 
-                    face_base2.x=data["vertex"]->properties["x"]->at<float>(data["face"]->properties["vertex_indices"]->at<unsigned int>(k*3+1));
-                    face_base2.y=data["vertex"]->properties["y"]->at<float>(data["face"]->properties["vertex_indices"]->at<unsigned int>(k*3+1));
-                    face_base2.z=data["vertex"]->properties["z"]->at<float>(data["face"]->properties["vertex_indices"]->at<unsigned int>(k*3+1));
+                        face_base2.x=data["vertex"]->properties["x"]->at<float>(data["face"]->properties["vertex_indices"]->at<unsigned int>(k*3+1));
+                        face_base2.y=data["vertex"]->properties["y"]->at<float>(data["face"]->properties["vertex_indices"]->at<unsigned int>(k*3+1));
+                        face_base2.z=data["vertex"]->properties["z"]->at<float>(data["face"]->properties["vertex_indices"]->at<unsigned int>(k*3+1));
 
-                    face_base3.x=data["vertex"]->properties["x"]->at<float>(data["face"]->properties["vertex_indices"]->at<unsigned int>(k*3+2));
-                    face_base3.y=data["vertex"]->properties["y"]->at<float>(data["face"]->properties["vertex_indices"]->at<unsigned int>(k*3+2));
-                    face_base3.z=data["vertex"]->properties["z"]->at<float>(data["face"]->properties["vertex_indices"]->at<unsigned int>(k*3+2));
-                    //cout<<"face norm: "<<face_norm.x<<" "<<face_norm.y<<" "<<face_norm.z<<endl;
-                    float p;
-                        //contact, ray, rayorigin, normal coord param
-                    if(linePlaneIntersection(&result, vec, point, face_norm, face_base, &p)){
-                            //kdyz bude param <0, zahodit (paprsek sel dozadu a narazil na odvracenou stranu)
-                        if((inTriangle(result, face_base, face_base2, face_base3))){
-                        //v rovine vypocitat jestli se nachazi v trojuhelniku,
-                            //kdyz ne continue;
-                        //kdyz ano vybrat nejblizsi, ostatni zakryva
-                                //cout<<p<<endl;
-                                if((p<param_m)&&(p>0)){
-                                    param_m=p;
-                                    visible=result;
-                                    visnorm=face_norm;
-                                    found=true;
-                                }//fi
-                            }//fi inTriangle
-                        }//fi linePlanet
-                }//for faces
-
+                        face_base3.x=data["vertex"]->properties["x"]->at<float>(data["face"]->properties["vertex_indices"]->at<unsigned int>(k*3+2));
+                        face_base3.y=data["vertex"]->properties["y"]->at<float>(data["face"]->properties["vertex_indices"]->at<unsigned int>(k*3+2));
+                        face_base3.z=data["vertex"]->properties["z"]->at<float>(data["face"]->properties["vertex_indices"]->at<unsigned int>(k*3+2));
+                        //cout<<"face norm: "<<face_norm.x<<" "<<face_norm.y<<" "<<face_norm.z<<endl;
+                        float p;
+                            //contact, ray, rayorigin, normal coord param
+                        if(linePlaneIntersection(&result, vec, point, face_norm, face_base, &p)){
+                                //kdyz bude param <0, zahodit (paprsek sel dozadu a narazil na odvracenou stranu)
+                            if((inTriangle(result, face_base, face_base2, face_base3))){
+                            //v rovine vypocitat jestli se nachazi v trojuhelniku,
+                                //kdyz ne continue;
+                            //kdyz ano vybrat nejblizsi, ostatni zakryva
+                                    //cout<<p<<endl;
+                                    if((p<param_m)&&(p>0)){
+                                        param_m=p;
+                                        visible=result;
+                                        visnorm=face_norm;
+                                        found=true;
+                                    }//fi
+                                }//fi inTriangle
+                            }//fi linePlanet
+                    }//for faces
+                }
                 //ve visible bude proste nejblizsi bod. ten bude bud privraceny=viditelny, nebo odvraceny=sli jsme skrz objekt, chyba
                 if((Dot(vec,visnorm)<0)&&(found==true)&&(param_m>0.1)){
                     //vypocitat vzorec ablace, sumovat s mezivysledkem
@@ -447,12 +454,6 @@ float computeDiffHeight(int number, Point3f point, vector<int> indexes, plycpp::
     cout<<"visible points: "<<vsblpnt<<endl;
      return I;
 }
-
-
-
-
-
-
 
 
 /*
@@ -514,6 +515,11 @@ void simulate(string name, float stepLength, size_t steps, size_t rays){
 
 
 /*
+-------TESTOVANI--------------
+*/
+
+
+/*
  * @brief
  * https://math.stackexchange.com/questions/1585975/how-to-generate-random-points-on-a-sphere
  * @param   number pocet paprsku z jednoho bodu
@@ -536,11 +542,12 @@ void showVisiblePoints(int number, Point3f point, vector<int> indexes, plycpp::P
                 Point3f visible;
                 Point3f visnorm;
                 bool found=false;
+                bool canSend=false;
                     //pokud neni v poloprostoru normaly
                     //if(vec.z<=(normal.x*vec.x+normal.y*vec.y)/normal.z){}
                 //ted mam vektor delky 1 do libovolneho smeru polokoule
                 vec=normalize(vec);
-               // cout<<"koule: "<<vec.x<<" "<<vec.y<<" "<<vec.z<<endl;
+
 
 
                 const auto& vertexIndicesData = data["face"]->properties["vertex_indices"];
@@ -553,55 +560,60 @@ void showVisiblePoints(int number, Point3f point, vector<int> indexes, plycpp::P
                     //cout<<"normala vertexu "<<indexes[j]<<": "<<point_norm.x<<" "<<point_norm.y<<" "<<point_norm.z<<endl;
                     //pokud lze vyslat
                     if(Dot(point_norm, vec)>0){
+                        canSend=true;
                         break;
                     }//fi muze byt vyslan
                     //muze byt vyslan jen jednou
                 }//for indexes
+                if(canSend==true){
                 //pres vsechny faces
-                for(size_t k=0; k<vertexIndicesData->size()/3; k++){
-                    Point3f face_norm;
-                    Point3f face_base;
-                    Point3f face_base2;
-                    Point3f face_base3;
-                        //cout<<"normala facu "<<j<<": ";
-                    face_norm.x=data["vertex"]->properties["nx"]->at<float>(data["face"]->properties["vertex_indices"]->at<unsigned int>(k*3));
-                    face_norm.y=data["vertex"]->properties["ny"]->at<float>(data["face"]->properties["vertex_indices"]->at<unsigned int>(k*3));
-                    face_norm.z=data["vertex"]->properties["nz"]->at<float>(data["face"]->properties["vertex_indices"]->at<unsigned int>(k*3));
+                    for(size_t k=0; k<vertexIndicesData->size()/3; k++){
+                        Point3f face_norm;
+                        Point3f face_base;
+                        Point3f face_base2;
+                        Point3f face_base3;
+                            //cout<<"normala facu "<<j<<": ";
+                        face_norm.x=data["vertex"]->properties["nx"]->at<float>(data["face"]->properties["vertex_indices"]->at<unsigned int>(k*3));
+                        face_norm.y=data["vertex"]->properties["ny"]->at<float>(data["face"]->properties["vertex_indices"]->at<unsigned int>(k*3));
+                        face_norm.z=data["vertex"]->properties["nz"]->at<float>(data["face"]->properties["vertex_indices"]->at<unsigned int>(k*3));
 
-                    face_base.x=data["vertex"]->properties["x"]->at<float>(data["face"]->properties["vertex_indices"]->at<unsigned int>(k*3));
-                    face_base.y=data["vertex"]->properties["y"]->at<float>(data["face"]->properties["vertex_indices"]->at<unsigned int>(k*3));
-                    face_base.z=data["vertex"]->properties["z"]->at<float>(data["face"]->properties["vertex_indices"]->at<unsigned int>(k*3));
+                        face_base.x=data["vertex"]->properties["x"]->at<float>(data["face"]->properties["vertex_indices"]->at<unsigned int>(k*3));
+                        face_base.y=data["vertex"]->properties["y"]->at<float>(data["face"]->properties["vertex_indices"]->at<unsigned int>(k*3));
+                        face_base.z=data["vertex"]->properties["z"]->at<float>(data["face"]->properties["vertex_indices"]->at<unsigned int>(k*3));
 
-                    face_base2.x=data["vertex"]->properties["x"]->at<float>(data["face"]->properties["vertex_indices"]->at<unsigned int>(k*3+1));
-                    face_base2.y=data["vertex"]->properties["y"]->at<float>(data["face"]->properties["vertex_indices"]->at<unsigned int>(k*3+1));
-                    face_base2.z=data["vertex"]->properties["z"]->at<float>(data["face"]->properties["vertex_indices"]->at<unsigned int>(k*3+1));
+                        face_base2.x=data["vertex"]->properties["x"]->at<float>(data["face"]->properties["vertex_indices"]->at<unsigned int>(k*3+1));
+                        face_base2.y=data["vertex"]->properties["y"]->at<float>(data["face"]->properties["vertex_indices"]->at<unsigned int>(k*3+1));
+                        face_base2.z=data["vertex"]->properties["z"]->at<float>(data["face"]->properties["vertex_indices"]->at<unsigned int>(k*3+1));
 
-                    face_base3.x=data["vertex"]->properties["x"]->at<float>(data["face"]->properties["vertex_indices"]->at<unsigned int>(k*3+2));
-                    face_base3.y=data["vertex"]->properties["y"]->at<float>(data["face"]->properties["vertex_indices"]->at<unsigned int>(k*3+2));
-                    face_base3.z=data["vertex"]->properties["z"]->at<float>(data["face"]->properties["vertex_indices"]->at<unsigned int>(k*3+2));
-                    //cout<<"face: "<<data["face"]->properties["vertex_indices"]->at<unsigned int>(k*3)<<endl;
-                    float p;
-                        //contact, ray, rayorigin, normal coord param
-                    if(linePlaneIntersection(&result, vec, point, face_norm, face_base, &p)){
-                            //kdyz bude param <0, zahodit (paprsek sel dozadu a narazil na odvracenou stranu)
-                        if(inTriangle(result, face_base, face_base2, face_base3)){
-                        //v rovine vypocitat jestli se nachazi v trojuhelniku,
-                            //kdyz ne continue;
-                        //kdyz ano vybrat nejblizsi, ostatni zakryva
-                                //cout<<p<<endl;
-                               // if(p!=0)cout<<result.x<<" "<<result.y<<" "<<result.z<<endl;
-                                if((p<param_m)&&(p>0)){
-                                    param_m=p;
-                                    visible=result;
-                                    visnorm=face_norm;
-                                    found=true;
-                                }//fi
-                            }//fi inTriangle
-                        }//fi linePlanet
-                }//for faces
+                        face_base3.x=data["vertex"]->properties["x"]->at<float>(data["face"]->properties["vertex_indices"]->at<unsigned int>(k*3+2));
+                        face_base3.y=data["vertex"]->properties["y"]->at<float>(data["face"]->properties["vertex_indices"]->at<unsigned int>(k*3+2));
+                        face_base3.z=data["vertex"]->properties["z"]->at<float>(data["face"]->properties["vertex_indices"]->at<unsigned int>(k*3+2));
+                        //cout<<"face: "<<data["face"]->properties["vertex_indices"]->at<unsigned int>(k*3)<<endl;
+                        float p;
+                            //contact, ray, rayorigin, normal coord param
+                        if(linePlaneIntersection(&result, vec, point, face_norm, face_base, &p)){
+                                //kdyz bude param <0, zahodit (paprsek sel dozadu a narazil na odvracenou stranu)
+                            if(inTriangle(result, face_base, face_base2, face_base3)){
+                            //v rovine vypocitat jestli se nachazi v trojuhelniku,
+                                //kdyz ne continue;
+                            //kdyz ano vybrat nejblizsi, ostatni zakryva
+                                    //cout<<p<<endl;
+                                   // if(p!=0)cout<<result.x<<" "<<result.y<<" "<<result.z<<endl;
+                                    if((p<param_m)&&(p>0)){
+                                        param_m=p;
+                                        visible=result;
+                                        visnorm=face_norm;
+                                        found=true;
+                                    }//fi
+                                }//fi inTriangle
+                            }//fi linePlanet
+                    }//for faces
+                }
                 //ve visible bude proste nejblizsi bod. ten bude bud privraceny=viditelny, nebo odvraceny=sli jsme skrz objekt, chyba
                 if((Dot(vec,visnorm)<0)&&(found==true)){
-                   cout<<visible.x<<" "<<visible.y<<" "<<visible.z<<endl;
+                    //cout<<"vektor: "<<vec.x<<" "<<vec.y<<" "<<vec.z<<" soucin"<<Dot(vec,visnorm)<<endl;
+                   cout<<"r: "<<visible.x<<" "<<visible.y<<" "<<visible.z<<endl;
+
                 }//fi muze dopadnout
                 //paprsek co nic nenasel zahodit
     }//for numbers
@@ -622,7 +634,7 @@ void getNorms(plycpp::PLYData data){
 */
 void points(string name, size_t rays){
     //index bodu
-    int i=20;
+    int i=1557;
     plycpp::PLYData data;
     plycpp::load(name, data);
     indexVerts(data);
@@ -632,6 +644,16 @@ void points(string name, size_t rays){
     Point3f pnt={data["vertex"]->properties["x"]->at<float>(i),data["vertex"]->properties["y"]->at<float>(i),data["vertex"]->properties["z"]->at<float>(i)};
     string key=to_string(pnt.x)+to_string(pnt.y)+to_string(pnt.z);
     vector<int> indexes= findSame(mapped, key);
-    getNorms(data);
-    //showVisiblePoints(rays, pnt, indexes, data);
+    //getNorms(data);
+    showVisiblePoints(rays, pnt, indexes, data);
+    //if(inTriangle({18.154, 9.30118, 12.9414},{-1.11694, 0.10512, 2.84442},{-0.991935, 0.19887, 2.94094},{-1.11694, 0.19887, 2.92972}))
+       //cout<<"true"<<endl;
+
+/*
+in triangle
+-1.11694 0.10512 2.84442
+-0.991935 0.19887 2.94094
+-1.11694 0.19887 2.92972
+r: 18.154 9.30118 12.9414
+*/
 }
