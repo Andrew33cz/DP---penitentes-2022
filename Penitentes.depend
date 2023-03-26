@@ -1,14 +1,6 @@
 # depslib dependency file v1.0
-1668450835 source:c:\users\ondra Èech\documents\codeblock\penitentes\main.cpp
-	<iostream>
-	<math.h>
-	<vector>
-	"plycpp.h"
-	<filesystem>
-	<array>
-	<map>
-	<random>
-	<chrono>
+1679417727 source:c:\users\ondra Èech\documents\codeblock\penitentes\main.cpp
+	"functions.hpp"
 
 1667319522 c:\users\ondra Èech\documents\codeblock\penitentes\plycpp.h
 	<vector>
@@ -27,4 +19,17 @@
 	<cassert>
 	<algorithm>
 	<typeindex>
+
+1679481506 c:\users\ondra Èech\documents\codeblock\penitentes\functions.hpp
+	<iostream>
+	<math.h>
+	<vector>
+	"plycpp.h"
+	<filesystem>
+	<array>
+	<map>
+	<algorithm>
+	<random>
+	<chrono>
+	<omp.h>
 

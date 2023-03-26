@@ -75,33 +75,32 @@ float distXY(Point3f src, Point3f vis){
  * @return  rozdil vysky bodu
 */
 float diffZ(Point3f src, Point3f vis){
-    return src.z-vis.z;
+    return vis.z-src.z;
 }
 
 /*
  * @brief   vypocet h'(x)
  * @param   ray paprsek
- * @param   vis viditelny bod
- * @param   visNorm normala v miste viditelneho bodu
+ * @param   pnt bod
+ * @param   norm normala v miste bodu
  * @return  derivace v bode x
 */
-float derviaceH(Point3f ray, Point3f vis, Point3f visNorm){
+float derviaceH(Point3f ray, Point3f pnt, Point3f norm){
     if(ray.x==0.0 && ray.y==0.0){
         //nejde urcit rez, ale nemelo by nastat
         cerr<<"svisly paprsek, nemelo by nastat"<<endl;
         return -1;
     }
-    if(visNorm.z==0){
+    if(norm.z==0){
         //kolmy povrch
-        //TODO
         return 65535.0;
     }
-    float d=-(visNorm.x*vis.x+visNorm.y*vis.y+visNorm.z*vis.z);
-    float movx=vis.x+ray.x;
-    float movy=vis.y+ray.y;
+    float d=-(norm.x*pnt.x+norm.y*pnt.y+norm.z*pnt.z);
+    float movx=pnt.x-ray.x;
+    float movy=pnt.y-ray.y;
 
-    float movz=(visNorm.x*movx+visNorm.y*movy+d)/visNorm.z;
-    return (vis.z-movz)/sqrt((movx-vis.x)*(movx-vis.x)+(movy-vis.y)*(movy-vis.y));
+    float movz=(norm.x*movx+norm.y*movy+d)/norm.z;
+    return (pnt.z-movz)/sqrt((movx-pnt.x)*(movx-pnt.x)+(movy-pnt.y)*(movy-pnt.y));
 }
 
 /*
@@ -374,17 +373,18 @@ float computeDiffHeight(int number, Point3f point, vector<int> indexes, plycpp::
                 vec=normalize(vec);
                // cout<<"koule: "<<vec.x<<" "<<vec.y<<" "<<vec.z<<endl;
 
-
+                Point3f point_norm;
                 const auto& vertexIndicesData = data["face"]->properties["vertex_indices"];
                 //pro kazdy face privraceny alespon k jednomu z bodu vypocitat prunik s rovinnou,
                 for(size_t j=0; j<indexes.size();j++){
-                    Point3f point_norm;
-                    point_norm.x=data["vertex"]->properties["nx"]->at<float>(indexes[j]);
-                    point_norm.y=data["vertex"]->properties["ny"]->at<float>(indexes[j]);
-                    point_norm.z=data["vertex"]->properties["nz"]->at<float>(indexes[j]);
+                    Point3f point_norm_tmp;
+                    point_norm_tmp.x=data["vertex"]->properties["nx"]->at<float>(indexes[j]);
+                    point_norm_tmp.y=data["vertex"]->properties["ny"]->at<float>(indexes[j]);
+                    point_norm_tmp.z=data["vertex"]->properties["nz"]->at<float>(indexes[j]);
                     //cout<<"normala vertexu "<<indexes[j]<<": "<<point_norm.x<<" "<<point_norm.y<<" "<<point_norm.z<<endl;
                     //pokud lze vyslat
-                    if(Dot(point_norm, vec)>0){
+                    if(Dot(point_norm_tmp, vec)>0){
+                        point_norm=point_norm_tmp;
                         check=true;
                         //muze byt vyslan jen jednou
                         break;
@@ -440,17 +440,16 @@ float computeDiffHeight(int number, Point3f point, vector<int> indexes, plycpp::
                     //vypocitat vzorec ablace, sumovat s mezivysledkem
                     float deltax=distXY(point,visible);
                     float deltah=diffZ(point,visible);
-                    float derivh=derviaceH(vec,visible, visnorm);
-
+                    float derivh=derviaceH(vec,point, point_norm);
                     vsblpnt++;
                     #pragma omp critical
-                    {
-                    Iota=Iota+((deltah-derivh*deltax)/(deltax*deltax+deltah*deltah));
+                    { //*3.141592653589 4*pi*r^2 /pi ze vzorce iota(x), pi se krati
+                    Iota=Iota+((deltah-derivh*deltax)/(deltax*deltax+deltah*deltah))*4/number;
                     }
                 }//fi muze dopadnout
                 //paprsek co nic nenasel zahodit
     }//for numbers
-    float I= -0.5e6/7e9*Iota;
+    float I= -0.5*1e6/(7e9)*Iota;
     cout<<"visible points: "<<vsblpnt<<endl;
      return I;
 }
@@ -527,6 +526,7 @@ void simulate(string name, float stepLength, size_t steps, size_t rays){
  * @param   data nactena 3d data
 */
 void showVisiblePoints(int number, Point3f point, vector<int> indexes, plycpp::PLYData data){
+    cout<<"p: "<<point.x<<" "<<point.y<<" "<<point.z<<endl;
     unsigned seed = chrono::system_clock::now().time_since_epoch().count();
     default_random_engine generator(seed);
     normal_distribution<float> distribution(0.0, 0.34);
@@ -612,7 +612,7 @@ void showVisiblePoints(int number, Point3f point, vector<int> indexes, plycpp::P
                 //ve visible bude proste nejblizsi bod. ten bude bud privraceny=viditelny, nebo odvraceny=sli jsme skrz objekt, chyba
                 if((Dot(vec,visnorm)<0)&&(found==true)){
                     //cout<<"vektor: "<<vec.x<<" "<<vec.y<<" "<<vec.z<<" soucin"<<Dot(vec,visnorm)<<endl;
-                   cout<<"r: "<<visible.x<<" "<<visible.y<<" "<<visible.z<<endl;
+                   if(param_m<1)cout<<visible.x<<" "<<visible.y<<" "<<visible.z<<"par:"<<param_m<<endl;
 
                 }//fi muze dopadnout
                 //paprsek co nic nenasel zahodit
@@ -632,9 +632,9 @@ void getNorms(plycpp::PLYData data){
  * @param   name jmeno souboru typu ply
  * @param   rays pocet vyslanych paprsku na jeden bod
 */
-void points(string name, size_t rays){
+void smtest(string name, size_t rays){
     //index bodu
-    int i=1557;
+    int i=347;
     plycpp::PLYData data;
     plycpp::load(name, data);
     indexVerts(data);
@@ -646,6 +646,7 @@ void points(string name, size_t rays){
     vector<int> indexes= findSame(mapped, key);
     //getNorms(data);
     showVisiblePoints(rays, pnt, indexes, data);
+    //cout<<"       "<<computeDiffHeight(rays, pnt, indexes, data)<<endl;
     //if(inTriangle({18.154, 9.30118, 12.9414},{-1.11694, 0.10512, 2.84442},{-0.991935, 0.19887, 2.94094},{-1.11694, 0.19887, 2.92972}))
        //cout<<"true"<<endl;
 

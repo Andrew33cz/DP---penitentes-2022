@@ -11,7 +11,7 @@
 				<Option object_output="obj/Debug/" />
 				<Option type="1" />
 				<Option compiler="gcc" />
-				<Option parameters="&gt; res.txt" />
+				<Option parameters="d41-2.ply 900 20 1000" />
 				<Compiler>
 					<Add option="-g" />
 				</Compiler>
@@ -31,8 +31,16 @@
 		</Build>
 		<Compiler>
 			<Add option="-Wall" />
+			<Add option="-std=c++17" />
 			<Add option="-fexceptions" />
+			<Add option="-fopenmp" />
+			<Add option="-lstdc++fs" />
 		</Compiler>
+		<Linker>
+			<Add library="C:/mingw64/bin/libgomp-1.dll" />
+			<Add library="stdc++fs" />
+		</Linker>
+		<Unit filename="functions.hpp" />
 		<Unit filename="main.cpp" />
 		<Unit filename="plycpp.cpp" />
 		<Unit filename="plycpp.h" />
