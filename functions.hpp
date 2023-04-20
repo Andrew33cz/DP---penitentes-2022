@@ -96,11 +96,12 @@ float derviaceH(Point3f ray, Point3f pnt, Point3f norm){
         return 65535.0;
     }
     float d=-(norm.x*pnt.x+norm.y*pnt.y+norm.z*pnt.z);
-    float movx=pnt.x-ray.x;
-    float movy=pnt.y-ray.y;
+    float movx=pnt.x+ray.x;
+    float movy=pnt.y+ray.y;
 
-    float movz=(norm.x*movx+norm.y*movy+d)/norm.z;
-    return (pnt.z-movz)/sqrt((movx-pnt.x)*(movx-pnt.x)+(movy-pnt.y)*(movy-pnt.y));
+    float movz=-(norm.x*movx+norm.y*movy+d)/norm.z;
+    float result = (movz-pnt.z)/sqrt((movx-pnt.x)*(movx-pnt.x)+(movy-pnt.y)*(movy-pnt.y));
+    return result;
 }
 
 /*
@@ -444,12 +445,16 @@ float computeDiffHeight(int number, Point3f point, vector<int> indexes, plycpp::
                     vsblpnt++;
                     #pragma omp critical
                     { //*3.141592653589 4*pi*r^2 /pi ze vzorce iota(x), pi se krati
-                    Iota=Iota+((deltah-derivh*deltax)/(deltax*deltax+deltah*deltah))*4/number;
+                    if(visnorm.z>0.0){
+                        Iota=Iota+((deltah-derivh*deltax)/(deltax*deltax+deltah*deltah))*4/number *1e6*visnorm.z;
+                        //cout<<param_m<<" dh: "<<deltah<<" dx: "<<deltax<<" hx: "<<derivh<<" dot"<<(Dot(visnorm,{0.0,0.0,1.0}))<<endl;
+                        }
                     }
                 }//fi muze dopadnout
                 //paprsek co nic nenasel zahodit
     }//for numbers
-    float I= -0.5*1e6/(7e9)*Iota;
+    float I= -0.5/(7e9)*Iota;
+    //cout<<I*900;
     cout<<"visible points: "<<vsblpnt<<endl;
      return I;
 }
@@ -634,7 +639,7 @@ void getNorms(plycpp::PLYData data){
 */
 void smtest(string name, size_t rays){
     //index bodu
-    int i=347;
+    int i=90;
     plycpp::PLYData data;
     plycpp::load(name, data);
     indexVerts(data);
@@ -645,8 +650,8 @@ void smtest(string name, size_t rays){
     string key=to_string(pnt.x)+to_string(pnt.y)+to_string(pnt.z);
     vector<int> indexes= findSame(mapped, key);
     //getNorms(data);
-    showVisiblePoints(rays, pnt, indexes, data);
-    //cout<<"       "<<computeDiffHeight(rays, pnt, indexes, data)<<endl;
+    //showVisiblePoints(rays, pnt, indexes, data);
+    cout<<"       "<<computeDiffHeight(rays, pnt, indexes, data)<<endl;
     //if(inTriangle({18.154, 9.30118, 12.9414},{-1.11694, 0.10512, 2.84442},{-0.991935, 0.19887, 2.94094},{-1.11694, 0.19887, 2.92972}))
        //cout<<"true"<<endl;
 
