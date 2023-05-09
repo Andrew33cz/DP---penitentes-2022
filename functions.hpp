@@ -65,7 +65,8 @@ float length(Point3f vect){
  * @return  vzdalenost bodu na vodorovne plose
 */
 float distXY(Point3f src, Point3f vis){
-    return sqrt((src.x-vis.x)*(src.x-vis.x)+(src.y-vis.y)*(src.y-vis.y));
+    float dx=sqrt((src.x-vis.x)*(src.x-vis.x)+(src.y-vis.y)*(src.y-vis.y));
+    return dx;
 }
 
 /*
@@ -76,42 +77,6 @@ float distXY(Point3f src, Point3f vis){
 */
 float diffZ(Point3f src, Point3f vis){
     return vis.z-src.z;
-}
-
-/*
- * @brief   vypocet h'(x)
- * @param   ray paprsek
- * @param   pnt bod
- * @param   norm normala v miste bodu
- * @return  derivace v bode x
-*/
-float derviaceH(Point3f ray, Point3f pnt, Point3f norm){
-    if(ray.x==0.0 && ray.y==0.0){
-        //nejde urcit rez, ale nemelo by nastat
-        cerr<<"svisly paprsek, nemelo by nastat"<<endl;
-        return -1;
-    }
-    if(norm.z==0){
-        //kolmy povrch
-        return 65535.0;
-    }
-    float d=-(norm.x*pnt.x+norm.y*pnt.y+norm.z*pnt.z);
-    float movx=pnt.x+ray.x;
-    float movy=pnt.y+ray.y;
-
-    float movz=-(norm.x*movx+norm.y*movy+d)/norm.z;
-    float result = (movz-pnt.z)/sqrt((movx-pnt.x)*(movx-pnt.x)+(movy-pnt.y)*(movy-pnt.y));
-    return result;
-}
-
-/*
- * @brief   porovnavani vektoru, pokud jsou dva normalizovane vektory stejne, bude vysledek 0
- * @param   A vektor
- * @param   B vektor
- * @return  rozdil A a B
-*/
-float diff(Point3f a, Point3f b){
-    return abs(a.x-b.x)+abs(a.y-b.y)+abs(a.z-b.z);
 }
 
 /*
@@ -130,6 +95,42 @@ Point3f normalize(Point3f vect){
         hlp.z=vect.z/l;
     }
     return hlp;
+}
+
+/*
+ * @brief   vypocet h'(x)
+ * @param   ray paprsek
+ * @param   pnt bod
+ * @param   norm normala v miste bodu
+ * @return  derivace v bode x
+*/
+float derviaceH(Point3f ray, Point3f pnt, Point3f norm){
+    if(ray.x==0.0 && ray.y==0.0){
+        //nejde urcit rez, ale nemelo by nastat
+        cerr<<"svisly paprsek, nemelo by nastat"<<endl;
+        return -1;
+    }
+    if(norm.z==0){
+        //kolmy povrch
+        return 65635.0;
+    }
+    float d=-(norm.x*pnt.x+norm.y*pnt.y+norm.z*pnt.z);
+    float movx=pnt.x-ray.x;
+    float movy=pnt.y-ray.y;
+
+    float movz=(norm.x*movx+norm.y*movy+d)/norm.z;////
+    float result = (pnt.z-movz)/sqrt((movx-pnt.x)*(movx-pnt.x)+(movy-pnt.y)*(movy-pnt.y));
+    return result;
+}
+
+/*
+ * @brief   porovnavani vektoru, pokud jsou dva normalizovane vektory stejne, bude vysledek 0
+ * @param   A vektor
+ * @param   B vektor
+ * @return  rozdil A a B
+*/
+float diff(Point3f a, Point3f b){
+    return abs(a.x-b.x)+abs(a.y-b.y)+abs(a.z-b.z);
 }
 
 /*
@@ -228,8 +229,7 @@ void setNormals(plycpp::PLYData data, int triangle){
                 Point3f vc=normalize(cross(pt1, pt2, pt3));
                 //skalarni soucin s puvodni normalou? jestli maji podobny smer
                 Point3f vc_orig={data["vertex"]->properties["nx"]->at<float>(i1), data["vertex"]->properties["ny"]->at<float>(i1), data["vertex"]->properties["nz"]->at<float>(i1)};
-                float dot=Dot(vc, vc_orig);
-                if(dot>0.0){
+                if(vc.z*vc_orig.z>0.0){
                     //zapsat do vsech tri bodu trojuhelniku
                     data["vertex"]->properties["nx"]->at<float>(i1)=vc.x;
                     data["vertex"]->properties["nx"]->at<float>(i2)=vc.x;
@@ -444,10 +444,11 @@ float computeDiffHeight(int number, Point3f point, vector<int> indexes, plycpp::
                     float derivh=derviaceH(vec,point, point_norm);
                     vsblpnt++;
                     #pragma omp critical
-                    { //*3.141592653589 4*pi*r^2 /pi ze vzorce iota(x), pi se krati
+                    { //*3.141592653589/pi ze vzorce iota(x), pi se krati, r=1
                     if(visnorm.z>0.0){
-                        Iota=Iota+((deltah-derivh*deltax)/(deltax*deltax+deltah*deltah))*4/number *1e6*visnorm.z;
-                        //cout<<param_m<<" dh: "<<deltah<<" dx: "<<deltax<<" hx: "<<derivh<<" dot"<<(Dot(visnorm,{0.0,0.0,1.0}))<<endl;
+                        float change=(((deltah-derivh*deltax)/(deltax*deltax+deltah*deltah))/2/number)*1e6*visnorm.z;
+                        Iota=Iota+change;
+                        //cout<<"Iota "<<Iota<<" "<<deltah<<" "<<deltax<<" "<<derivh<<endl;
                         }
                     }
                 }//fi muze dopadnout
@@ -624,6 +625,11 @@ void showVisiblePoints(int number, Point3f point, vector<int> indexes, plycpp::P
     }//for numbers
 }
 
+
+/*
+ * @brief   testovaci funkce na ziskani normal z souboru
+ * @param   data data nactena 3d data
+*/
 void getNorms(plycpp::PLYData data){
     for(int x=0; x<data["vertex"]->size(); x++){
       cout<<data["vertex"]->properties["x"]->at<float>(x)+data["vertex"]->properties["nx"]->at<float>(x)*0.1<<" "
@@ -639,7 +645,7 @@ void getNorms(plycpp::PLYData data){
 */
 void smtest(string name, size_t rays){
     //index bodu
-    int i=90;
+    int i=122;
     plycpp::PLYData data;
     plycpp::load(name, data);
     indexVerts(data);

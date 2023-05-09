@@ -31,6 +31,6 @@ int main(int argc, char *argv[])
     cout<<name<<" "<<atoi(argv[2])<<" "<<atoi(argv[3])<<" "<<atoi(argv[4])<<" "<<endl;
     simulate(name,atoi(argv[2]),atoi(argv[3]),atoi(argv[4]));
     //smtest(name,atoi(argv[4]));
-    //cout<<derviaceH({0.0,1.0,0.0},{562.0,25.2,35.8},{0.0,-1.0,1.0})<<endl;
+    //cout<<derviaceH({1.0,0.0,-0.5},{562.0,25.2,35.8},{-1.0,0.0,1.0})<<endl;
     return 0;
 }
