@@ -355,8 +355,9 @@ float computeDiffHeight(int number, Point3f point, vector<int> indexes, plycpp::
     normal_distribution<float> distribution(0.0, 0.34);
     float Iota=0;
     int vsblpnt=0;
-        #pragma omp parallel for
+        #pragma omp parallel for reduction (+: Iota)
         for(int i=0; i<number; i++){
+                float change=0;
                 Point3f result;
                 Point3f vec;
                 vec.x=distribution(generator);
@@ -443,16 +444,14 @@ float computeDiffHeight(int number, Point3f point, vector<int> indexes, plycpp::
                     float deltah=diffZ(point,visible);
                     float derivh=derviaceH(vec,point, point_norm);
                     vsblpnt++;
-                    #pragma omp critical
-                    { //*3.141592653589/pi ze vzorce iota(x), pi se krati, r=1
+                    //*3.141592653589/pi ze vzorce iota(x), pi se krati, r=1
                     if(visnorm.z>0.0){
-                        float change=(((deltah-derivh*deltax)/(deltax*deltax+deltah*deltah))/2/number)*1e6*visnorm.z;
-                        Iota=Iota+change;
+                        change=(((deltah-derivh*deltax)/(deltax*deltax+deltah*deltah))/2/number)*1e6*visnorm.z;
                         //cout<<"Iota "<<Iota<<" "<<deltah<<" "<<deltax<<" "<<derivh<<endl;
                         }
-                    }
                 }//fi muze dopadnout
                 //paprsek co nic nenasel zahodit
+                Iota=Iota+change;
     }//for numbers
     float I= -0.5/(7e9)*Iota;
     //cout<<I*900;

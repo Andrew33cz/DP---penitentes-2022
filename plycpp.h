@@ -47,12 +47,14 @@ namespace plycpp
 		BINARY
 	};
 
-	class Exception : public std::runtime_error
+	class Exception : public std::exception
 	{
 	public:
-		Exception(const std::string& msg)
-			: runtime_error(msg.c_str())
-		{}
+		Exception(const std::string& msg): msg_(msg) { }
+        virtual char const *what() const noexcept { return msg_.c_str(); }
+
+    private:
+      std::string msg_;
 	};
 
 	template<typename Key, typename T>
